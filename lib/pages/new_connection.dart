@@ -1,7 +1,7 @@
+import 'package:c3_video_downloader/providers/connection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ssh2/ssh2.dart';
+import 'package:provider/provider.dart';
 
 class NewConnectionPage extends StatefulWidget {
   const NewConnectionPage({Key? key}) : super(key: key);
@@ -14,6 +14,7 @@ class _NewConnectionPageState extends State<NewConnectionPage> {
   final _formKey = GlobalKey<FormState>();
   final _hostController = TextEditingController();
   final _keyController = TextEditingController();
+  bool _isTestingConnection = false;
 
   @override
   void dispose() {
@@ -49,8 +50,8 @@ class _NewConnectionPageState extends State<NewConnectionPage> {
                     decoration: const InputDecoration(hintText: 'Private Key'),
                     validator: (value) =>
                         value?.isNotEmpty != true ? 'Required' : null,
-                    maxLines: 5,
-                  )
+                    maxLines: 10,
+                  ),
                 ],
               ),
             ),
@@ -66,12 +67,34 @@ class _NewConnectionPageState extends State<NewConnectionPage> {
   ElevatedButton _buildTestButton() {
     return ElevatedButton(
       onPressed: () async {
+        if (_isTestingConnection) {
+          return;
+        }
         if (_formKey.currentState?.validate() ?? false) {
-          final result = await _testConnection();
+          final ConnectionProvider provider =
+              Provider.of(context, listen: false);
+          setState(() {
+            _isTestingConnection = true;
+          });
+          final result = await provider.testConnection(
+            host: _hostController.text,
+            privateKey: _keyController.text,
+          );
           _showAlertDialog(result);
+          setState(() {
+            _isTestingConnection = false;
+          });
         }
       },
-      child: const Text('Test'),
+      child: _isTestingConnection
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+              ),
+            )
+          : const Text('Test'),
     );
   }
 
@@ -106,29 +129,5 @@ class _NewConnectionPageState extends State<NewConnectionPage> {
       onPressed: () => context.go('/'),
       child: const Text('Save'),
     );
-  }
-
-  Future<String> _testConnection() async {
-    final client = SSHClient(
-      host: _hostController.text,
-      port: 22,
-      username: 'comma',
-      passwordOrKey: {'privateKey': _keyController.text},
-    );
-    try {
-      await client.connect();
-      final isConnected = await client.isConnected();
-      return isConnected ? 'success' : 'fail';
-    } catch (e) {
-      if (e is PlatformException) {
-        return e.message ?? 'unknown';
-      } else {
-        rethrow;
-      }
-    } finally {
-      if (await client.isConnected()) {
-        await client.disconnect();
-      }
-    }
   }
 }

@@ -1,8 +1,15 @@
+import 'package:c3_video_downloader/providers/connection.dart';
 import 'package:c3_video_downloader/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    Provider(
+      create: (_) => ConnectionProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
